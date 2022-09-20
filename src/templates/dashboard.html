@@ -1,0 +1,18 @@
+<head>
+    <link rel="stylesheet" type="text/css" href="static/css/index.css" />
+    <script src="static/htmx.min.js"></script>
+
+</head>
+
+<span hx-get="@dashboard.navbar" hx-trigger="load"></span>
+<div class="flex pt-16 overflow-hidden bg-gray-50 dark:bg-gray-900">
+
+    <span hx-get="@dashboard.sidebar"></span>
+
+    <div id="main-content" class="relative w-full h-full overflow-y-auto bg-gray-50 lg:ml-64 dark:bg-gray-900">
+        <main id="content-container" hx-get="@dashboard.default_content">
+        </main>
+        <span hx-get="@dashboard.footer"></span>
+    </div>
+
+</div>

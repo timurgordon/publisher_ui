@@ -1,0 +1,28 @@
+<div class="flex flex-col mt-2">
+    <div class="overflow-x-auto">
+        <div class="inline-block min-w-full align-middle"> 
+            <div class="overflow-hidden shadow">
+                <div class="flex items-start justify-start px-4 mb-6 space-x-4">
+
+                    @for list in kanban.lists
+                    <div class="min-w-kanban" hx-get="/list/@list.id" hx-trigger="load">
+                    </div>
+                    @end
+         
+                    @include './listmodal'
+                    {{ create_list }}
+                    <div class="min-w-kanban">
+                        <div class="py-4 text-base font-semibold text-gray-900">
+                            {{ label }}
+                        </div>
+                        <button type="button" data-modal-toggle="new-card-modal" class="flex items-center justify-center w-full h-32 py-2 m-0 font-semibold text-gray-500 border-2 border-gray-200 border-dashed rounded-lg hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700 dark:hover:bg-gray-800 dark:hover:text-white">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
