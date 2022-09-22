@@ -10,6 +10,7 @@ pub mut:
 	footer string
 	default_content string
 	template string = "./dashboard.html"
+	router Router
 }
 
 pub struct Navbar {
@@ -18,6 +19,7 @@ pub mut:
 }
 
 pub struct Footer {
+pub:
 	links []string
 	template string = "./dashboard.html"
 }

@@ -5,14 +5,18 @@
 </head>
 
 <span hx-get="@dashboard.navbar" hx-trigger="load"></span>
-<div class="flex pt-16 overflow-hidden bg-gray-50 dark:bg-gray-900">
+<div class="flex pt-16 overflow-hidden bg-gray-50 dark:bg-gray-900 h-full">
 
-    <span hx-get="@dashboard.sidebar"></span>
+    <span hx-get="@dashboard.sidebar" hx-trigger="load"></span>
 
+    <span hx-trigger="click target:#email-btn" hx-get="insert_auth_listener"></span>
     <div id="main-content" class="relative w-full h-full overflow-y-auto bg-gray-50 lg:ml-64 dark:bg-gray-900">
-        <main id="content-container" hx-get="@dashboard.default_content">
-        </main>
-        <span hx-get="@dashboard.footer"></span>
+        
+            <main id="dashboard-container" 
+                hx-get="@dashboard.router.active.route" hx-trigger="load once">
+            </main>
+
+        <span hx-get="@dashboard.footer" hx-trigger="load"></span>
     </div>
 
 </div>

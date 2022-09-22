@@ -27,8 +27,12 @@ struct JwtPayload {
 }
 
 fn make_token(user User) string {
-	secret := os.getenv('SECRET_KEY')
+	
+	$if debug {
+		eprintln(@FN + ':\nCreating cookie token for user: $user')
+	}	
 
+	secret := os.getenv('SECRET_KEY')
 	jwt_header := JwtHeader{'HS256', 'JWT'}
 	user_email := user.emails[0]
 	jwt_payload := JwtPayload{
@@ -49,6 +53,19 @@ fn make_token(user User) string {
 
 fn auth_verify(token string) bool {
 	secret := os.getenv('SECRET_KEY')
+	token_split := token.split('.')
+
+	signature_mirror := hmac.new(secret.bytes(), '${token_split[0]}.${token_split[1]}'.bytes(),
+		sha256.sum, sha256.block_size).bytestr().bytes()
+
+	signature_from_token := base64.url_decode(token_split[2])
+
+	return hmac.equal(signature_from_token, signature_mirror)
+}
+
+fn get_user(token string) username_string {
+	secret := os.getenv('SECRET_KEY')
+	println("secret $secret \n token: $token")
 	token_split := token.split('.')
 
 	signature_mirror := hmac.new(secret.bytes(), '${token_split[0]}.${token_split[1]}'.bytes(),
