@@ -38,11 +38,10 @@ fn run_publisher(ch chan Message) {
 // 	for{}
 // }
 
-fn new_app(ch chan Message) &App {
+fn new_app() &App {
     mut publisher := publisher2.get() or { panic(err) }
 	mut app := &App {
 		publisher: publisher
-		channel: ch
 	}
 		
     // makes all static files available.
@@ -53,10 +52,10 @@ fn new_app(ch chan Message) &App {
 struct App {
 	vweb.Context
 mut:
-	channel shared chan Message
+	channel chan Message
 	user User
 	email string
-	publisher Publisher
+	publisher shared Publisher
 	dashboard Dashboard
 	authenticators shared map[string]Auth
 	home Home
@@ -75,71 +74,48 @@ mut:
 	authenticated bool = false
 }
 
-fn new_publisher() Publisher {
-	mut publisher := publisher2.get() or {
-		panic("can'tget publisher")
-	}
-	
-	publisher.site_add("zanzibar", .book)
-	site_path := Path {
-		path: '/Users/timurgordon/code/github/ourworld-tsc/ourworld_books/docs/zanzibar'
-	}
-	publisher.sites["zanzibar"].path = site_path
-
-	user_timur := User {
-		name: 'timur@threefold.io'
-		emails: [
-			Email { address: 'timur@threefold.io', authenticated: false }
-		]
-	}
-
-	site_ace := ACE {
-		users: [&user_timur]
-		right: .write
-	}
-
-	site_acl := ACL {
-		name: 'zanzibar_acl'
-		entries: [site_ace]
-	}
-
-	site_auth := Authentication {
-		email_required: true			
-		email_authenticated: false 
-		tfconnect: false		
-		kyc: false			
-		acl: [&site_acl]
-	}
-
-	publisher.sites["zanzibar"].authentication = site_auth
-	publisher.users['timur@threefold.io'] = user_timur
-	return publisher
-}
-
-fn listener(ch chan Message) {
-	mut msg := Message{}
-	for {
-		msg = <- ch
-		println(msg)
-	}
-}
-
 fn main() {
-	ch := chan Message{}
-	go listener(ch)
-	mut app := new_app(ch)
-	lock app.channel {
-		app.channel = ch
-	}
-	
-	go vweb.run(app, port) 
-	for {
+	mut app := new_app()
+	lock app.publisher {
+		app.publisher.site_add("zanzibar", .book)
+		site_path := Path {
+			path: '/Users/timurgordon/code/github/ourworld-tsc/ourworld_books/docs/zanzibar'
+		}
+		app.publisher.sites["zanzibar"].path = site_path
 
+		user_timur := User {
+			name: 'timur@threefold.io'
+			emails: [
+				Email { address: 'timur@threefold.io', authenticated: false }
+			]
+		}
+
+		site_ace := ACE {
+			users: [&user_timur]
+			right: .write
+		}
+
+		site_acl := ACL {
+			name: 'zanzibar_acl'
+			entries: [site_ace]
+		}
+
+		site_auth := Authentication {
+			email_required: true			
+			email_authenticated: false 
+			tfconnect: false		
+			kyc: false			
+			acl: [&site_acl]
+		}
+
+		app.publisher.sites["zanzibar"].authentication = site_auth
+		app.publisher.users['timur@threefold.io'] = user_timur
 	}
+	println('runnin')
+	vweb.run(app, port)
 }
 
 pub fn (mut app App) index() vweb.Result {
-
 	return $vweb.html()
 }
 

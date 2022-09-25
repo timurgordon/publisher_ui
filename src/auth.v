@@ -60,11 +60,11 @@ pub fn (mut app App) auth_verify(email string) vweb.Result {
 
 	app.user = new_user
 	app.email = email
-	// lock app.publisher {
+	lock app.publisher {
 		if ! app.publisher.users.keys().contains(email) {
 			app.publisher.user_add(email)
 		}
-	// }
+	}
 	
 	new_auth := send_verification_email(email)
 	lock app.authenticators {
