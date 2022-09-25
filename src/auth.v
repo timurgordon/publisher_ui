@@ -7,29 +7,50 @@ import time { Time }
 import rand { ulid }
 import os
 import v.ast
-import ui_kit { Action, Component, Dashboard, Navbar, Sidebar, Router, Route, Footer}
+import ui_kit { Action, Component, Dashboard, Navbar, Sidebar, Router, Route, Footer, Login}
 import crypto.rand as crypto_rand
 import sqlite
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, Email }
 
 pub fn (mut app App) login() vweb.Result {
+
+	login_action := Action {
+		label: 'Continue'
+		route: 'login_action'
+		target: ''
+	}
+	
+	login := Login {
+		heading: 'Sign in to publisher'
+		login: login_action
+	}
+
 	return $vweb.html()
+}
+
+pub fn (mut app App) login_action() vweb.Result {
+	if true {
+		// send_verification_email()
+		// return app.auth_verify()
+	}
+	return app.html('')
 }
 
 // TODO: address based request limits recognition to prevent brute
 // TODO: max allowed request per seccond to prevent dos
-// 
+// if 
 ["/auth_verify"; post]
 pub fn (mut app App) auth_verify(email string) vweb.Result {
+	// 
+	// token := app.get_cookie('token') or { '' }
+	// username := get_username(token)
+
 	new_email := Email {
 		address: email
 		authenticated: false
 	}
 	new_user := User { name: email, emails: [new_email] }
-	println(app)
-	lock app.publisher {
-		app.publisher.users[email] = new_user
-	}
+
 	token := make_token(new_user)
 	app.set_cookie(name: 'token', value: token)
 
@@ -39,43 +60,19 @@ pub fn (mut app App) auth_verify(email string) vweb.Result {
 
 	app.user = new_user
 	app.email = email
-	lock app.publisher {
-		app.publisher.user_add(email)
-	}
-	auth_code := crypto_rand.bytes(64) or { panic(err) }
-	auth_hex := auth_code.hex()
-	lock app.authenticators {
-		app.authenticators[email] = Auth {
-			auth_code: auth_code
+	// lock app.publisher {
+		if ! app.publisher.users.keys().contains(email) {
+			app.publisher.user_add(email)
 		}
+	// }
+	
+	new_auth := send_verification_email(email)
+	lock app.authenticators {
+		app.authenticators[email] = new_auth
 	}
-	expiry_unix := time.now().unix + 180
-	timeout := time.new_time(unix: expiry_unix)
 
-	to := email
-	subject := 'Test Subject'
-	body := 'Test Body, <a href="localhost:8000/authenticate/$email/$auth_hex">Click to authenticate</a>'
-	client_cfg := smtp.Client{
-		server: 'smtp.freesmtpservers.com'
-		from: 'verify@tfpublisher.io'
-		port: 25
-		username: ''
-		password: ''
-	}
-	send_cfg := smtp.Mail{
-		to: to
-		subject: subject
-		body_type: .html
-		body: body
-	}
-	mut client := smtp.new_client(client_cfg) or { panic('Error configuring smtp') }
-	client.send(send_cfg) or { panic('Error resolving email address') }
-	$if debug {
-		eprintln(@FN + ':\nSent verification email to: $email')
-	}
 	return $vweb.html()
 }
-
 
 ["/authenticate/:email/:cypher"; get]
 pub fn (mut app App) authenticate(email string, cypher string) vweb.Result {

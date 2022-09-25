@@ -2,7 +2,9 @@
 <span hx-get="sites_filterbar" hx-target="this" hx-trigger="load"></span>
 
 <div class="grid grid-cols-1 gap-4 mt-4 w-full md:grid-cols-2 xl:grid-cols-3">
-    @for name, site in sites
-        <span hx-get="site_card/@name" hx-target="this" hx-trigger="load"></span>
+    @if accessible_sites.len > 0
+        @for name, site in accessible_sites
+            <span hx-get="site_card/@name" hx-target="this" hx-trigger="load"></span>
+        @end
     @end
 </div>

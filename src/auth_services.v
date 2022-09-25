@@ -6,6 +6,8 @@ import crypto.bcrypt
 import encoding.base64
 import json
 import time
+import net.smtp
+import crypto.rand as crypto_rand
 import os
 import freeflowuniverse.crystallib.publisher2 { Publisher, User }
 
@@ -21,9 +23,7 @@ struct JwtPayload {
 	exp         string    // (expiration) = Timestamp de quando o token irá expirar;
 	iat         time.Time // (issued at) = Timestamp de quando o token foi criado;
 	aud         string    // (audience) = Destinatário do token, representa a aplicação que irá usá-lo.
-	name        string
-	roles       string
-	permissions string
+	user		User
 }
 
 fn make_token(user User) string {
@@ -36,8 +36,7 @@ fn make_token(user User) string {
 	jwt_header := JwtHeader{'HS256', 'JWT'}
 	user_email := user.emails[0]
 	jwt_payload := JwtPayload{
-		sub: '$user.name'
-		name: '$user_email'
+		user: user
 		iat: time.now()
 	}
 
@@ -63,15 +62,41 @@ fn auth_verify(token string) bool {
 	return hmac.equal(signature_from_token, signature_mirror)
 }
 
-fn get_user(token string) username_string {
-	secret := os.getenv('SECRET_KEY')
-	println("secret $secret \n token: $token")
-	token_split := token.split('.')
+fn get_username(token string) string {
+	payload := json.decode(JwtPayload, base64.url_decode(token.split('.')[1]).bytestr()) or {
+		panic(err)
+	}
+	return payload.user.name
+}
 
-	signature_mirror := hmac.new(secret.bytes(), '${token_split[0]}.${token_split[1]}'.bytes(),
-		sha256.sum, sha256.block_size).bytestr().bytes()
+fn send_verification_email(email string) Auth {
+	auth_code := crypto_rand.bytes(64) or { panic(err) }
+	authenticator := Auth { auth_code: auth_code }
 
-	signature_from_token := base64.url_decode(token_split[2])
+	auth_hex := auth_code.hex()
+	expiry_unix := time.now().unix + 180
+	timeout := time.new_time(unix: expiry_unix)
 
-	return hmac.equal(signature_from_token, signature_mirror)
+	subject := 'Test Subject'
+	body := 'Test Body, <a href="localhost:8000/authenticate/$email/$auth_hex">Click to authenticate</a>'
+	client_cfg := smtp.Client {
+		server: 'smtp.mailtrap.io'
+		from: 'verify@tfpublisher.io'
+		port: 465
+		username: 'e57312ae7c9742'
+		password: 'b8dc875d4a0b33'
+	}
+	send_cfg := smtp.Mail{
+		to: email
+		subject: subject
+		body_type: .html
+		body: body
+	}
+	mut client := smtp.new_client(client_cfg) or { panic('Error creating smtp client: $err') }
+	client.send(send_cfg) or { panic('Error resolving email address') }
+	client.quit() or { panic('Could not close connection to server')}
+	$if debug {
+		eprintln(@FN + ':\nSent verification email to: $email')
+	}
+	return authenticator
 }

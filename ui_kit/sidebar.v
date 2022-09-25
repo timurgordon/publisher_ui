@@ -19,6 +19,7 @@ pub struct Action {
 	icon string
 	route string
 	swap string
+	target string
 	trigger string = "click"
 }
 

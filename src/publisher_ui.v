@@ -10,7 +10,7 @@ import v.ast
 import ui_kit { Action, Component, Dashboard, Navbar, Sidebar, Router, Route, Footer}
 import crypto.rand as crypto_rand
 import sqlite
-import freeflowuniverse.crystallib.publisher2 { Publisher, User }
+import freeflowuniverse.crystallib.publisher2 { Publisher, User, ACE, ACL, Authentication, Email }
 import freeflowuniverse.crystallib.pathlib { Path }
 
 const (
@@ -38,10 +38,11 @@ fn run_publisher(ch chan Message) {
 // 	for{}
 // }
 
-fn new_app() &App {
+fn new_app(ch chan Message) &App {
     mut publisher := publisher2.get() or { panic(err) }
 	mut app := &App {
 		publisher: publisher
+		channel: ch
 	}
 		
     // makes all static files available.
@@ -52,10 +53,10 @@ fn new_app() &App {
 struct App {
 	vweb.Context
 mut:
-	channel chan Message
+	channel shared chan Message
 	user User
 	email string
-	publisher shared Publisher
+	publisher Publisher
 	dashboard Dashboard
 	authenticators shared map[string]Auth
 	home Home
@@ -74,55 +75,76 @@ mut:
 	authenticated bool = false
 }
 
-fn main() {
-	mut app := new_app()
-	lock app.publisher {
-		app.publisher.site_add("zanzibar", .book)
-		site_path := Path {
-			path: '/Users/timurgordon/code/github/ourworld-tsc/ourworld_books/docs/zanzibar'
-		}
-		app.publisher.sites["zanzibar"].path = site_path
+fn new_publisher() Publisher {
+	mut publisher := publisher2.get() or {
+		panic("can'tget publisher")
 	}
-	println('runnin')
-	vweb.run(app, port)
+	
+	publisher.site_add("zanzibar", .book)
+	site_path := Path {
+		path: '/Users/timurgordon/code/github/ourworld-tsc/ourworld_books/docs/zanzibar'
+	}
+	publisher.sites["zanzibar"].path = site_path
+
+	user_timur := User {
+		name: 'timur@threefold.io'
+		emails: [
+			Email { address: 'timur@threefold.io', authenticated: false }
+		]
+	}
+
+	site_ace := ACE {
+		users: [&user_timur]
+		right: .write
+	}
+
+	site_acl := ACL {
+		name: 'zanzibar_acl'
+		entries: [site_ace]
+	}
+
+	site_auth := Authentication {
+		email_required: true			
+		email_authenticated: false 
+		tfconnect: false		
+		kyc: false			
+		acl: [&site_acl]
+	}
+
+	publisher.sites["zanzibar"].authentication = site_auth
+	publisher.users['timur@threefold.io'] = user_timur
+	return publisher
+}
+
+fn listener(ch chan Message) {
+	mut msg := Message{}
+	for {
+		msg = <- ch
+		println(msg)
+	}
+}
+
+fn main() {
+	ch := chan Message{}
+	go listener(ch)
+	mut app := new_app(ch)
+	lock app.channel {
+		app.channel = ch
+	}
+	
+	go vweb.run(app, port) 
+	for {
+
+	}
 }
 
 pub fn (mut app App) index() vweb.Result {
+
 	return $vweb.html()
 }
 
-pub fn (mut app App) await_authentication() vweb.Result {
-	return app.html(
-		'<span>Awaiting authentication</span>'
-	)
-}
+// pub fn (mut app App) new_site() vweb.Result
 
-pub fn (mut app App) dashboard_sidebar() vweb.Result {
-
-	home_action := Action {
-		label: "Home",
-		icon: "#",
-		route: "home",
-		swap: "content_container"
-	}
-
-	kanban_action := Action {
-		label: "Kanban",
-		icon: "#",
-		route: "kanban",
-		swap: "content_container"
-	}
-
-	side_menu := [
-		home_action,
-		kanban_action
-	]
-
-	sidebar := Sidebar {
-		menu: side_menu
-	}
-	return $vweb.html()
-}
 
 // from vweb_example.v
 pub fn (mut app App) create_cookie() vweb.Result {
@@ -131,59 +153,3 @@ pub fn (mut app App) create_cookie() vweb.Result {
 	return app.text('Response Headers\n$app.header')
 }
 
-pub fn (mut app App) dashboard() vweb.Result {
-
-	// token := app.get_header('token')
-
-	// if !auth_verify(token) {
-	// 	app.set_status(401, '')
-	// 	return app.text('Not valid token')
-	// }
-
-	footer := Footer {
-		links: []
-	}
-
-	home_route := Route {
-		route: 'home'
-		//redirect: 'login'
-		//access_check: home_access
-	}
-
-
-	dashboard_router := Router {
-		active: home_route
-		output: 'dashboard-container'
-		routes: [
-			home_route
-		]
-	}
-	
-	dashboard := Dashboard {
-		logo_path: '#'
-		navbar: 'dashboard_navbar'
-		sidebar: 'dashboard_sidebar'
-		footer: 'dashboard_footer'
-		router: dashboard_router
-	}
-
-	app.dashboard = dashboard
-	
-	return $vweb.html()
-}
-
-pub fn (mut app App) dashboard_navbar() vweb.Result {
-
-	navbar := Navbar {
-		logo_path: '#'
-	}
-	
-	return $vweb.html()
-}
-
-pub fn (mut app App) dashboard_footer() vweb.Result {
-	footer := Footer {
-		links: ['link']
-	}
-	return $vweb.html()
-}
