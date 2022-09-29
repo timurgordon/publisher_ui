@@ -9,7 +9,8 @@ import time
 import net.smtp
 import crypto.rand as crypto_rand
 import os
-import freeflowuniverse.crystallib.publisher2 { Publisher, User }
+import freeflowuniverse.crystallib.publisher2 { Publisher, User, Email }
+import vweb
 
 
 struct JwtHeader {
@@ -62,11 +63,24 @@ fn auth_verify(token string) bool {
 	return hmac.equal(signature_from_token, signature_mirror)
 }
 
-fn get_username(token string) string {
+fn get_username(token string) ?string {
+	if token == '' {
+		return error('Cookie token is empty')
+	}
 	payload := json.decode(JwtPayload, base64.url_decode(token.split('.')[1]).bytestr()) or {
 		panic(err)
 	}
 	return payload.user.name
+}
+
+fn get_user(token string) ?User {
+	if token == '' {
+		return error('Cookie token is empty')
+	}
+	payload := json.decode(JwtPayload, base64.url_decode(token.split('.')[1]).bytestr()) or {
+		panic(err)
+	}
+	return payload.user
 }
 
 fn send_verification_email(email string) Auth {
@@ -99,4 +113,20 @@ fn send_verification_email(email string) Auth {
 		eprintln(@FN + ':\nSent verification email to: $email')
 	}
 	return authenticator
+}
+
+
+[post]
+pub fn (mut app App) login_service(email string) vweb.Result {
+	email_obj := Email {
+		address: email
+		authenticated: false
+	}
+	user := User { name: email, emails: [email_obj] }
+	lock app.publisher{
+		println(app.publisher.users[user.name]) 
+	}
+	token := make_token(user)
+	app.set_cookie(name: 'token', value: token)
+	return app.ok('')
 }

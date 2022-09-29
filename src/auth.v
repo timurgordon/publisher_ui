@@ -12,18 +12,37 @@ import crypto.rand as crypto_rand
 import sqlite
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, Email }
 
-pub fn (mut app App) login() vweb.Result {
 
-	login_action := Action {
+// login page, asks for email, creates cookie with email
+// if receives requisite, checks if user meets requisite
+// if requisite is auth_required, loads authentication page
+// if receives sitename, redirects to site page
+['/login/:url/:requisite']
+pub fn (mut app App) login(sitename string, requisite string) vweb.Result {
+
+	if app.get_header('Hx-Request') != 'true' {
+		return app.index()
+	}
+
+	referer := app.get_header('Referer')
+
+	println("debugz: $app.req")
+
+	mut login_action := Action {
 		label: 'Continue'
-		route: 'login_action'
-		target: ''
+		route: '/sites/preview/$sitename/'
+		target: '#dashboard-container'
+	}
+	
+	if requisite == 'auth_required' {
+		login_action.route = '/authenticate/$sitename'
 	}
 	
 	login := Login {
 		heading: 'Sign in to publisher'
 		login: login_action
 	}
+		//return app.index()
 
 	return $vweb.html()
 }
@@ -39,32 +58,32 @@ pub fn (mut app App) login_action() vweb.Result {
 // TODO: address based request limits recognition to prevent brute
 // TODO: max allowed request per seccond to prevent dos
 // if 
-["/auth_verify"; post]
-pub fn (mut app App) auth_verify(email string) vweb.Result {
-	// 
-	// token := app.get_cookie('token') or { '' }
-	// username := get_username(token)
+["/auth_verify"]
+pub fn (mut app App) auth_verify() vweb.Result {
+	token := app.get_cookie('token') or { '' }
+	user := get_user(token) or { User {} }
+	email := user.emails[0].address
 
-	new_email := Email {
-		address: email
-		authenticated: false
-	}
-	new_user := User { name: email, emails: [new_email] }
+	// new_email := Email {
+	// 	address: email
+	// 	authenticated: false
+	// }
+	// new_user := User { name: email, emails: [new_email] }
 
-	token := make_token(new_user)
-	app.set_cookie(name: 'token', value: token)
+	// token := make_token(new_user)
+	// app.set_cookie(name: 'token', value: token)
 
-	$if debug {
-		eprintln(@FN + ':\nCreated email cookie for: $email')
-	}
+	// $if debug {
+	// 	eprintln(@FN + ':\nCreated email cookie for: $email')
+	// }
 
-	app.user = new_user
-	app.email = email
-	lock app.publisher {
-		if ! app.publisher.users.keys().contains(email) {
-			app.publisher.user_add(email)
-		}
-	}
+	// app.user = new_user
+	// app.email = email
+	// lock app.publisher {
+	// 	if ! app.publisher.users.keys().contains(email) {
+	// 		app.publisher.user_add(email)
+	// 	}
+	// }
 	
 	new_auth := send_verification_email(email)
 	lock app.authenticators {
