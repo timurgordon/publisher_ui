@@ -13,77 +13,70 @@ import sqlite
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, ACE, ACL, Authentication, Email }
 import freeflowuniverse.crystallib.pathlib { Path }
 
+
+// ['/dashboard/:route']
+// pub fn (mut app App) dashboard(route string) vweb.Result {
+// 	return app.dashboard
+// }
+
+// // returns dashboard layout and current page
+// ['/dashboard/:route']
+// pub fn (mut app App) dashboard_router(route string) vweb.Result {
+// 	println(app.req)
+
+// 	return $vweb.html()
+// }
+
+['/dashboard']
 pub fn (mut app App) dashboard() vweb.Result {
-
-	// token := app.get_header('token')
-
-	// if !auth_verify(token) {
-	// 	app.set_status(401, '')
-	// 	return app.text('Not valid token')
-	// }
-
-	footer := Footer {
-		links: []
+	url := app.get_header('Hx-Current-Url')
+	split_url := url.split('/')
+	mut current_url := 'dashboard/home'
+	if url.contains('dashboard/') {
+		current_url = url.split('dashboard/')[1]
+	} else {
+		app.add_header('Hx-Push', 'dashboard')
 	}
 
-	home_route := Route {
-		route: 'home'
-		//redirect: 'login'
-		//access_check: home_access
-	}
-
-
-	dashboard_router := Router {
-		active: home_route
-		output: 'dashboard-container'
-		routes: [
-			home_route
-		]
-	}
-	
 	dashboard := Dashboard {
 		logo_path: '#'
-		navbar: 'dashboard_navbar'
-		sidebar: 'dashboard_sidebar'
-		router: dashboard_router
+		navbar: '/dashboard/navbar'
+		sidebar: '/dashboard/sidebar'
+		router: '/home'
+		output: 'dashboard-container'
 	}
 
-	app.dashboard = dashboard
-	
+	// app.add_header('HX-Push', '/dashboard/home')
+
 	return $vweb.html()
 }
 
+['/dashboard/navbar']
 pub fn (mut app App) dashboard_navbar() vweb.Result {
 
 	navbar := Navbar {
 		logo_path: '#'
+		username: app.user.name
 	}
 	
 	return $vweb.html()
 }
 
-pub fn (mut app App) dashboard_footer() vweb.Result {
-	footer := Footer {
-		links: ['link']
-	}
-	return $vweb.html()
-}
-
-
+['/dashboard/sidebar']
 pub fn (mut app App) dashboard_sidebar() vweb.Result {
 
 	home_action := Action {
 		label: "Home",
 		icon: "#",
-		route: "home",
-		swap: "content_container"
+		route: "/dashboard/home",
+		target: "#dashboard-container"
 	}
 
 	kanban_action := Action {
-		label: "Kanban",
+		label: "Sites",
 		icon: "#",
-		route: "kanban",
-		swap: "content_container"
+		route: "/dashboard/sites",
+		target: "#dashboard-container"
 	}
 
 	side_menu := [
