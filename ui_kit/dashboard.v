@@ -10,12 +10,14 @@ pub mut:
 	footer string
 	default_content string
 	template string = "./dashboard.html"
-	router Router
+	router string
+	output string
 }
 
 pub struct Navbar {
 pub mut:
 	logo_path string
+	username string
 }
 
 pub struct Footer {

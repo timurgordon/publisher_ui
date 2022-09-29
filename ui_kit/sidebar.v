@@ -14,13 +14,19 @@ pub struct Sidebar {
 type HTMX_fn = fn () vweb.Result
 
 pub struct Action {
-	pub:
+	pub mut:
 	label string
 	icon string
 	route string
 	swap string
 	target string
 	trigger string = "click"
+	action_type ActionType
+}
+
+pub enum ActionType {
+	htmx
+	anchor
 }
 
 pub struct Dropdown {
