@@ -1,12 +1,3 @@
----
-title: ThreeFold UI Template
-description: 
----
 
-# ThreeFold UI Template
+A tool for sharing, monitoring, managing access to html content such as sites, books, documentation etc.
 
-
-Get started:
-
-* [Documentation](/)
-* [Create UI](/)
