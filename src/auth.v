@@ -13,65 +13,55 @@ import sqlite
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, Email }
 
 
+// Root auth route, handles login, verification, and redirect
 ['/auth/:requisite']
 pub fn (mut app App) auth(requisite string) vweb.Result {
 
 	url := app.get_header('Referer')
-	// url := app.req.url
 	mut route := url.split('//')[1].all_after_first('/')
-	// mut route := app.req.url
+	mut satisfied := false
 
 	$if debug {
-		// eprintln(@FN + ':\nAuth request from: $app')
-		// eprintln('Requisite: $requisite')
+		eprintln(@FN + ':\nAuth request from: $url')
+		eprintln('Auth Requisite: $requisite')
 	}	
 
 	if requisite == 'email_required' {
 		if app.user.emails.len == 0 {
 			route = '/auth_login'
 		} else {
-			target := app.get_header('Hx-Target')
-			if target != "" {
-				app.add_header('HX-Location', '{"path":"/$route", "target":"#$target"}')
-			} else {
-				app.add_header('HX-Location', '{"path":"/$route"}')
-			}
-			return app.ok('')
+			satisfied = true
 		}
 	} 
 	
 	if requisite == 'auth_required' {
-		println(app.user)
 		if app.user.emails.any(!it.authenticated) {
 			route = '/auth_verify'
 		} else {
-			target := app.get_header('Hx-Target')
+			satisfied = true
+		}
+	}
+
+	// Redirect (via hx-location) to route if requisite satisfed
+	if satisfied {
+		target := app.get_header('Hx-Target')
 			if target != "" {
 				app.add_header('HX-Location', '{"path":"/$route", "target":"#$target"}')
 			} else {
 				app.add_header('HX-Location', '{"path":"/$route"}')
 			}
-			return app.ok('')
-		}
+		return app.ok('')
 	}
-	// $method := "login"
-	// return app.$method()
+
 	return $vweb.html()
-	//app.redirect(app.req.url)
 }
 
 // login page, asks for email, creates cookie with email
-// if receives requisite, checks if user meets requisite
-// if requisite is auth_required, loads authentication page
-// if receives sitename, redirects to site page
 pub fn (mut app App) auth_login() vweb.Result {
 
 	url := app.get_header('Referer')
-	// url := app.req.url
 	mut route := url.split('//')[1].all_after_first('/')
 
-	sitename:= ''
-	requisite:= ''
 	if app.get_header('Hx-Request') != 'true' {
 		return app.index()
 	}
@@ -81,30 +71,17 @@ pub fn (mut app App) auth_login() vweb.Result {
 		route: '/auth/email_required'
 	}
 	
-	if requisite == 'auth_required' {
-		login_action.route = '/auth_verify/'
-	}
-	
 	login := Login {
 		heading: 'Sign in to publisher'
 		login: login_action
 	}
-		//return app.index()
 
 	return $vweb.html()
 }
 
-pub fn (mut app App) login_action() vweb.Result {
-	if true {
-		// send_verification_email()
-		// return app.auth_verify()
-	}
-	return app.html('')
-}
-
 // TODO: address based request limits recognition to prevent brute
 // TODO: max allowed request per seccond to prevent dos
-// if 
+// sends verification email, returns verify email page
 ["/auth_verify"]
 pub fn (mut app App) auth_verify() vweb.Result {
 	token := app.get_cookie('token') or { '' }
@@ -119,15 +96,20 @@ pub fn (mut app App) auth_verify() vweb.Result {
 	return $vweb.html()
 }
 
+// route of email verification link, random cypher
+// authenticates if email/cypher combo correct in 3 tries & 3min
 ["/authenticate/:email/:cypher"; get]
 pub fn (mut app App) authenticate(email string, cypher string) vweb.Result {
 	lock app.authenticators {
-		// read/modify/write b.x
 		if cypher == app.authenticators[email].auth_code.hex() {
-			$if debug {
-				eprintln(@FN + ':\nUser authenticated email: $email')
+			if attempts < 3 {
+				$if debug {
+					eprintln(@FN + ':\nUser authenticated email: $email')
+				}
 			}
 			app.authenticators[email].authenticated = true
+		} else {
+			app.authenticators[email].attempts += 1
 		}
 	}
 	return app.text("")
@@ -139,36 +121,31 @@ pub fn (mut app App) insert_auth_listener() vweb.Result {
 }
 
 // Updates authentication status by sending server sent event
-// The body of the sse indicates to auth container which route to get 
 ["/auth_update/:email"]
 pub fn (mut app App) auth_update(email string) vweb.Result {	
 
 	mut session := sse.new_connection(app.conn)
-	// Note: you can setup session.write_timeout and session.headers here
 	session.start() or { return app.server_error(501) }
 
 	$if debug {
 		eprintln(@FN + ':\nWaiting authentication for email: $email')
 	}
 
+	// checks if email is authenticated every 2 seconds
+	// inspired from https://github.com/vlang/v/blob/master/examples/vweb/server_sent_events/server.v
 	for {
 		lock app.authenticators{
 			if app.authenticators[email].authenticated {
 				data := '{"time": "$time.now().str()", "random_id": "$rand.ulid()"}'
-				// for some reason htmx doesn't pick up first sse
+				//? for some reason htmx doesn't pick up first sse
 				msg := SSEMessage{event: 'email_authenticated', data: data}
 				session.send_message(msg) or { return app.server_error(501) }
 				session.send_message(msg) or { return app.server_error(501) }
 				app.authenticators[email].authenticated = false
-
-
-				// app.update_user_cookie(updated_user)
-				$if debug {
-					eprintln(@FN + ':\nSent server side event: email_authenticated')
-				}
 			}
 		}
-		time.sleep(1 * time.second)
+		time.sleep(2 * time.second)
 	}
+
 	return app.server_error(501)
 }

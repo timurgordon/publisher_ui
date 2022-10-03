@@ -17,27 +17,6 @@ const (
 	port = 8000
 )
 
-struct Message {
-	event string
-	data string
-}
-
-fn run_publisher(ch chan Message) {
-	mut buf := Message{}
-	for {
-		buf = <- ch
-		println(buf)
-	}
-}
-
-// fn main() {
-// 	ch := chan Message{}
-// 	go run_server(ch)
-// 	go run_publisher(ch)
-
-// 	for{}
-// }
-
 pub fn (mut app App) before_request() {
 
 	// TODO: update cookie instead of creating new one
@@ -48,16 +27,11 @@ pub fn (mut app App) before_request() {
 		app.user = get_user(updated_token) or { User{} }
 		println("ussr: $app.user")
 	}
-
-
 }
 
 fn new_app() &App {
 	mut app := &App {}
-		
-	// app.serve_static('/static/sites', 'static/sites/index.html')
     app.mount_static_folder_at(os.resource_abs_path('./static'), '/static')
-    // app.mount_static_folder_at(os.resource_abs_path('./static'), '/static')
     return app
 }
 
@@ -162,6 +136,3 @@ pub fn (mut app App) index() vweb.Result {
 	}
 	return $vweb.html()
 }
-
-// pub fn (mut app App) new_site() vweb.Result
-

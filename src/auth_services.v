@@ -12,31 +12,36 @@ import os
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, Email, Access }
 import vweb
 
+// JWT code in this page is from 
+// https://github.com/vlang/v/blob/master/examples/vweb_orm_jwt/src/auth_services.v
+// credit to https://github.com/enghitalo
 
 struct JwtHeader {
 	alg string
 	typ string
 }
 
+//TODO: refactor to use single JWT interface
 struct JwtPayload {
-	sub         string    // (subject) = Entidade à quem o token pertence, normalmente o ID do usuário;
-	iss         string    // (issuer) = Emissor do token;
-	exp         string    // (expiration) = Timestamp de quando o token irá expirar;
-	iat         time.Time // (issued at) = Timestamp de quando o token foi criado;
-	aud         string    // (audience) = Destinatário do token, representa a aplicação que irá usá-lo.
+	sub         string    // (subject)
+	iss         string    // (issuer)
+	exp         string    // (expiration)
+	iat         time.Time // (issued at)
+	aud         string    // (audience)
 	user		User
 }
 
 struct AccessPayload {
-	sub         string    // (subject) = Entidade à quem o token pertence, normalmente o ID do usuário;
-	iss         string    // (issuer) = Emissor do token;
-	exp         string    // (expiration) = Timestamp de quando o token irá expirar;
-	iat         time.Time // (issued at) = Timestamp de quando o token foi criado;
-	aud         string    // (audience) = Destinatário do token, representa a aplicação que irá usá-lo.
+	sub         string  
+	iss         string  
+	exp         string  
+	iat         time.Time
+	aud         string  
 	access		Access
 	user		string
 }
 
+// creates user jwt cookie, enables session keeping
 fn make_token(user User) string {
 	
 	$if debug {
@@ -60,6 +65,9 @@ fn make_token(user User) string {
 	return jwt
 }
 
+// creates site access token
+// used to cache site accesses within session
+// TODO: must expire within session in case access revoked
 fn make_access_token(access Access, user string) string {
 	
 	$if debug {
@@ -84,6 +92,7 @@ fn make_access_token(access Access, user string) string {
 	return jwt
 }
 
+// verifies jwt cookie 
 fn auth_verify(token string) bool {
 	secret := os.getenv('SECRET_KEY')
 	token_split := token.split('.')
@@ -96,16 +105,7 @@ fn auth_verify(token string) bool {
 	return hmac.equal(signature_from_token, signature_mirror)
 }
 
-fn get_username(token string) ?string {
-	if token == '' {
-		return error('Cookie token is empty')
-	}
-	payload := json.decode(JwtPayload, base64.url_decode(token.split('.')[1]).bytestr()) or {
-		panic(err)
-	}
-	return payload.user.name
-}
-
+// gets cookie token, returns user obj
 fn get_user(token string) ?User {
 	if token == '' {
 		return error('Cookie token is empty')
@@ -116,6 +116,7 @@ fn get_user(token string) ?User {
 	return payload.user
 }
 
+// gets cookie token, returns access obj
 fn get_access(token string, username string) ?Access {
 	if token == '' {
 		return error('Cookie token is empty')
@@ -129,6 +130,8 @@ fn get_access(token string, username string) ?Access {
 	return payload.access
 }
 
+// create authenticator and random cypher
+// config smtp client and sends mail with verification link
 fn send_verification_email(email string) Auth {
 	auth_code := crypto_rand.bytes(64) or { panic(err) }
 	authenticator := Auth { auth_code: auth_code }
@@ -161,7 +164,7 @@ fn send_verification_email(email string) Auth {
 	return authenticator
 }
 
-
+// create login cookie and add user to publisher
 [post]
 pub fn (mut app App) login_service(email string) vweb.Result {
 	email_obj := Email {
@@ -170,8 +173,6 @@ pub fn (mut app App) login_service(email string) vweb.Result {
 	}
 	user := User { name: email, emails: [email_obj] }
 	lock app.publisher{
-		// if app.publisher[]
-		// app.publisher.add_user_email()
 		if app.publisher.users[email] == User{} {
 			mut new_user := app.publisher.user_add(email)
 			new_user.emails = [email_obj]

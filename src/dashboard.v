@@ -14,22 +14,16 @@ import freeflowuniverse.crystallib.publisher2 { Publisher, User, ACE, ACL, Authe
 import freeflowuniverse.crystallib.pathlib { Path }
 
 
-// ['/dashboard/:route']
-// pub fn (mut app App) dashboard(route string) vweb.Result {
-// 	return app.dashboard
-// }
-
-// returns dashboard layout and current page
+// router to catch and redirect dashboard routes
 ['/dashboard/:route...']
 pub fn (mut app App) dashboard_(route string) vweb.Result {
 	return app.dashboard()
 }
 
+// returns dashboard with child page according to route
 pub fn (mut app App) dashboard() vweb.Result {
 	url := app.get_header('Hx-Current-Url')
-	split_url := url.split('/')
 	mut current_url := '/home'
-	println("debugz: $app")
 	if app.req.url.contains('dashboard/') {
 		current_url = app.req.url.all_after('dashboard')
 	} else {
@@ -45,7 +39,6 @@ pub fn (mut app App) dashboard() vweb.Result {
 	}
 
 	// app.add_header('HX-Push', '/dashboard/home')
-
 	return $vweb.html()
 }
 
@@ -60,7 +53,6 @@ pub fn (mut app App) dashboard_navbar() vweb.Result {
 }
 
 pub fn (mut app App) dashboard_sidebar() vweb.Result {
-
 	home_action := Action {
 		label: "Home",
 		icon: "#",
@@ -68,7 +60,7 @@ pub fn (mut app App) dashboard_sidebar() vweb.Result {
 		target: "#dashboard-container"
 	}
 
-	kanban_action := Action {
+	sites_action := Action {
 		label: "Sites",
 		icon: "#",
 		route: "/sites",

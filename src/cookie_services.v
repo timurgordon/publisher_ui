@@ -13,6 +13,9 @@ import sqlite
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, ACE, ACL, Authentication, Email, Right, Access }
 import freeflowuniverse.crystallib.pathlib { Path }
 
+// cookie code inspired from:
+// https://github.com/vlang/v/blob/master/examples/vweb/vweb_example.v
+
 // from vweb_example.v
 pub fn (mut app App) create_cookie() vweb.Result {
 	token := make_token(app.user)
@@ -34,6 +37,5 @@ pub fn (mut app App) update_user_cookie(email string) vweb.Result {
 pub fn (mut app App) create_access_cookie(name string, access Access) {
 	token := make_access_token(access, app.user.name)
 	app.set_cookie(name: name, value: token)
-	// return app.text('Response Headers\n$app.header')
 }
 
