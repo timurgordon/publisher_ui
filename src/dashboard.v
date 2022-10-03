@@ -19,29 +19,27 @@ import freeflowuniverse.crystallib.pathlib { Path }
 // 	return app.dashboard
 // }
 
-// // returns dashboard layout and current page
-// ['/dashboard/:route']
-// pub fn (mut app App) dashboard_router(route string) vweb.Result {
-// 	println(app.req)
+// returns dashboard layout and current page
+['/dashboard/:route...']
+pub fn (mut app App) dashboard_(route string) vweb.Result {
+	return app.dashboard()
+}
 
-// 	return $vweb.html()
-// }
-
-['/dashboard']
 pub fn (mut app App) dashboard() vweb.Result {
 	url := app.get_header('Hx-Current-Url')
 	split_url := url.split('/')
-	mut current_url := 'dashboard/home'
-	if url.contains('dashboard/') {
-		current_url = url.split('dashboard/')[1]
+	mut current_url := '/home'
+	println("debugz: $app")
+	if app.req.url.contains('dashboard/') {
+		current_url = app.req.url.all_after('dashboard')
 	} else {
 		app.add_header('Hx-Push', 'dashboard')
 	}
 
 	dashboard := Dashboard {
 		logo_path: '#'
-		navbar: '/dashboard/navbar'
-		sidebar: '/dashboard/sidebar'
+		navbar: '/dashboard_navbar'
+		sidebar: '/dashboard_sidebar'
 		router: '/home'
 		output: 'dashboard-container'
 	}
@@ -51,7 +49,6 @@ pub fn (mut app App) dashboard() vweb.Result {
 	return $vweb.html()
 }
 
-['/dashboard/navbar']
 pub fn (mut app App) dashboard_navbar() vweb.Result {
 
 	navbar := Navbar {
@@ -62,20 +59,19 @@ pub fn (mut app App) dashboard_navbar() vweb.Result {
 	return $vweb.html()
 }
 
-['/dashboard/sidebar']
 pub fn (mut app App) dashboard_sidebar() vweb.Result {
 
 	home_action := Action {
 		label: "Home",
 		icon: "#",
-		route: "/dashboard/home",
+		route: "/home",
 		target: "#dashboard-container"
 	}
 
 	kanban_action := Action {
 		label: "Sites",
 		icon: "#",
-		route: "/dashboard/sites",
+		route: "/sites",
 		target: "#dashboard-container"
 	}
 
