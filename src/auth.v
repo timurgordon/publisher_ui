@@ -2,7 +2,7 @@ module main
 
 import net.smtp
 import vweb
-import vweb.sse
+import vweb.sse { SSEMessage }
 import time { Time }
 import rand { ulid }
 import os
@@ -13,29 +13,76 @@ import sqlite
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, Email }
 
 
+['/auth/:requisite']
+pub fn (mut app App) auth(requisite string) vweb.Result {
+
+	url := app.get_header('Referer')
+	// url := app.req.url
+	mut route := url.split('//')[1].all_after_first('/')
+	// mut route := app.req.url
+
+	$if debug {
+		// eprintln(@FN + ':\nAuth request from: $app')
+		// eprintln('Requisite: $requisite')
+	}	
+
+	if requisite == 'email_required' {
+		if app.user.emails.len == 0 {
+			route = '/auth_login'
+		} else {
+			target := app.get_header('Hx-Target')
+			if target != "" {
+				app.add_header('HX-Location', '{"path":"/$route", "target":"#$target"}')
+			} else {
+				app.add_header('HX-Location', '{"path":"/$route"}')
+			}
+			return app.ok('')
+		}
+	} 
+	
+	if requisite == 'auth_required' {
+		println(app.user)
+		if app.user.emails.any(!it.authenticated) {
+			route = '/auth_verify'
+		} else {
+			target := app.get_header('Hx-Target')
+			if target != "" {
+				app.add_header('HX-Location', '{"path":"/$route", "target":"#$target"}')
+			} else {
+				app.add_header('HX-Location', '{"path":"/$route"}')
+			}
+			return app.ok('')
+		}
+	}
+	// $method := "login"
+	// return app.$method()
+	return $vweb.html()
+	//app.redirect(app.req.url)
+}
+
 // login page, asks for email, creates cookie with email
 // if receives requisite, checks if user meets requisite
 // if requisite is auth_required, loads authentication page
 // if receives sitename, redirects to site page
-['/login/:url/:requisite']
-pub fn (mut app App) login(sitename string, requisite string) vweb.Result {
+pub fn (mut app App) auth_login() vweb.Result {
 
+	url := app.get_header('Referer')
+	// url := app.req.url
+	mut route := url.split('//')[1].all_after_first('/')
+
+	sitename:= ''
+	requisite:= ''
 	if app.get_header('Hx-Request') != 'true' {
 		return app.index()
 	}
 
-	referer := app.get_header('Referer')
-
-	println("debugz: $app.req")
-
 	mut login_action := Action {
 		label: 'Continue'
-		route: '/sites/preview/$sitename/'
-		target: '#dashboard-container'
+		route: '/auth/email_required'
 	}
 	
 	if requisite == 'auth_required' {
-		login_action.route = '/authenticate/$sitename'
+		login_action.route = '/auth_verify/'
 	}
 	
 	login := Login {
@@ -64,27 +111,6 @@ pub fn (mut app App) auth_verify() vweb.Result {
 	user := get_user(token) or { User {} }
 	email := user.emails[0].address
 
-	// new_email := Email {
-	// 	address: email
-	// 	authenticated: false
-	// }
-	// new_user := User { name: email, emails: [new_email] }
-
-	// token := make_token(new_user)
-	// app.set_cookie(name: 'token', value: token)
-
-	// $if debug {
-	// 	eprintln(@FN + ':\nCreated email cookie for: $email')
-	// }
-
-	// app.user = new_user
-	// app.email = email
-	// lock app.publisher {
-	// 	if ! app.publisher.users.keys().contains(email) {
-	// 		app.publisher.user_add(email)
-	// 	}
-	// }
-	
 	new_auth := send_verification_email(email)
 	lock app.authenticators {
 		app.authenticators[email] = new_auth
@@ -112,7 +138,8 @@ pub fn (mut app App) insert_auth_listener() vweb.Result {
 	return app.html('hx-sse="connect:/auth_update/$email"')
 }
 
-
+// Updates authentication status by sending server sent event
+// The body of the sse indicates to auth container which route to get 
 ["/auth_update/:email"]
 pub fn (mut app App) auth_update(email string) vweb.Result {	
 
@@ -129,9 +156,13 @@ pub fn (mut app App) auth_update(email string) vweb.Result {
 			if app.authenticators[email].authenticated {
 				data := '{"time": "$time.now().str()", "random_id": "$rand.ulid()"}'
 				// for some reason htmx doesn't pick up first sse
-				session.send_message(event: 'email_authenticated', data: data) or { return app.server_error(501) }
-				session.send_message(event: 'email_authenticated', data: data) or { return app.server_error(501) }
+				msg := SSEMessage{event: 'email_authenticated', data: data}
+				session.send_message(msg) or { return app.server_error(501) }
+				session.send_message(msg) or { return app.server_error(501) }
 				app.authenticators[email].authenticated = false
+
+
+				// app.update_user_cookie(updated_user)
 				$if debug {
 					eprintln(@FN + ':\nSent server side event: email_authenticated')
 				}

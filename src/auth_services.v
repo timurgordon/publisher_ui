@@ -9,7 +9,7 @@ import time
 import net.smtp
 import crypto.rand as crypto_rand
 import os
-import freeflowuniverse.crystallib.publisher2 { Publisher, User, Email }
+import freeflowuniverse.crystallib.publisher2 { Publisher, User, Email, Access }
 import vweb
 
 
@@ -27,6 +27,16 @@ struct JwtPayload {
 	user		User
 }
 
+struct AccessPayload {
+	sub         string    // (subject) = Entidade à quem o token pertence, normalmente o ID do usuário;
+	iss         string    // (issuer) = Emissor do token;
+	exp         string    // (expiration) = Timestamp de quando o token irá expirar;
+	iat         time.Time // (issued at) = Timestamp de quando o token foi criado;
+	aud         string    // (audience) = Destinatário do token, representa a aplicação que irá usá-lo.
+	access		Access
+	user		string
+}
+
 fn make_token(user User) string {
 	
 	$if debug {
@@ -35,8 +45,31 @@ fn make_token(user User) string {
 
 	secret := os.getenv('SECRET_KEY')
 	jwt_header := JwtHeader{'HS256', 'JWT'}
-	user_email := user.emails[0]
 	jwt_payload := JwtPayload{
+		user: user
+		iat: time.now()
+	}
+
+	header := base64.url_encode(json.encode(jwt_header).bytes())
+	payload := base64.url_encode(json.encode(jwt_payload).bytes())
+	signature := base64.url_encode(hmac.new(secret.bytes(), '${header}.$payload'.bytes(),
+		sha256.sum, sha256.block_size).bytestr().bytes())
+
+	jwt := '${header}.${payload}.$signature'
+
+	return jwt
+}
+
+fn make_access_token(access Access, user string) string {
+	
+	$if debug {
+		eprintln(@FN + ':\nCreating access cookie for user: $user')
+	}	
+
+	secret := os.getenv('SECRET_KEY')
+	jwt_header := JwtHeader{'HS256', 'JWT'}
+	jwt_payload := AccessPayload{
+		access: access
 		user: user
 		iat: time.now()
 	}
@@ -83,6 +116,19 @@ fn get_user(token string) ?User {
 	return payload.user
 }
 
+fn get_access(token string, username string) ?Access {
+	if token == '' {
+		return error('Cookie token is empty')
+	}
+	payload := json.decode(AccessPayload, base64.url_decode(token.split('.')[1]).bytestr()) or {
+		panic(err)
+	}
+	if payload.user != username {
+		return error('Access cookie is for different user')
+	}
+	return payload.access
+}
+
 fn send_verification_email(email string) Auth {
 	auth_code := crypto_rand.bytes(64) or { panic(err) }
 	authenticator := Auth { auth_code: auth_code }
@@ -124,7 +170,12 @@ pub fn (mut app App) login_service(email string) vweb.Result {
 	}
 	user := User { name: email, emails: [email_obj] }
 	lock app.publisher{
-		println(app.publisher.users[user.name]) 
+		// if app.publisher[]
+		// app.publisher.add_user_email()
+		if app.publisher.users[email] == User{} {
+			mut new_user := app.publisher.user_add(email)
+			new_user.emails = [email_obj]
+		}
 	}
 	token := make_token(user)
 	app.set_cookie(name: 'token', value: token)

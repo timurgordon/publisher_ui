@@ -39,28 +39,17 @@ fn run_publisher(ch chan Message) {
 // }
 
 pub fn (mut app App) before_request() {
+
+	// TODO: update cookie instead of creating new one
 	token := app.get_cookie('token') or { '' }
 	app.user = get_user(token) or { User{} }
-	if app.req.url.starts_with('/sites/') {
-		sitename := app.req.url.split('/')[2]
-		mut access := Access{}
-		rlock app.publisher {
-			access = app.publisher.get_access(app.user.name, sitename)
-		}
-		if access.right == .read || access.right == .write {
-			if access.status == .email_required {
-				if app.user.emails.len == 0 {
-					app.attempted_url = app.req.url
-					app.redirect('/dashboard/login')
-				}
-			}
-			if access.status == .auth_required {
-				if ! app.user.emails.any(it.authenticated) {
-					app.redirect('/dashboard/auth_verify/$token')
-				}
-			}
-		}
+	updated_token := app.get_cookie('token2') or { '' }
+	if updated_token != '' {
+		app.user = get_user(updated_token) or { User{} }
+		println("ussr: $app.user")
 	}
+
+
 }
 
 fn new_app() &App {
@@ -117,6 +106,11 @@ fn main() {
 		os.symlink(site_path1.path, 'sites/$sitename1')?
 	}
 
+	acl := publisher.acl_add('admins')
+	mut ace := publisher.ace_add('admins', .write)
+	publisher.ace_add_user(mut ace, user_timur)
+	publisher.site_acl_add('admins', acl)
+
 	// new site zanzibar feasibility that requires authenticated email
 	sitename2 := 'ourworld_zanzibar_feasibility'
 	site2 := publisher.site_add("ourworld_zanzibar_feasibility", .book)
@@ -160,17 +154,14 @@ fn main() {
 }
 
 pub fn (mut app App) index() vweb.Result {
-
+	mut route := 'dashboard'
+	if app.get_header('Hx-Request') != 'true' {
+		if app.req.url != '/' {
+			route = app.req.url.all_after_first('/')
+		}
+	}
 	return $vweb.html()
 }
 
 // pub fn (mut app App) new_site() vweb.Result
-
-
-// from vweb_example.v
-pub fn (mut app App) create_cookie() vweb.Result {
-	token := make_token(app.user)
-	app.set_cookie(name: 'token', value: token)
-	return app.text('Response Headers\n$app.header')
-}
 
