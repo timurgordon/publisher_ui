@@ -38,7 +38,6 @@ fn new_app() &App {
 struct App {
 	vweb.Context
 mut:
-	channel chan Message
 	user User
 	email string
 	attempted_url string
