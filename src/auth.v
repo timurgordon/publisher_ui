@@ -101,15 +101,16 @@ pub fn (mut app App) auth_verify() vweb.Result {
 ["/authenticate/:email/:cypher"; get]
 pub fn (mut app App) authenticate(email string, cypher string) vweb.Result {
 	lock app.authenticators {
-		if cypher == app.authenticators[email].auth_code.hex() {
-			if attempts < 3 {
+		mut authenticator := app.authenticators[email]
+		if cypher == authenticator.auth_code.hex() {
+			if authenticator.attempts < 3 {
 				$if debug {
 					eprintln(@FN + ':\nUser authenticated email: $email')
 				}
 			}
-			app.authenticators[email].authenticated = true
+			authenticator.authenticated = true
 		} else {
-			app.authenticators[email].attempts += 1
+			authenticator.attempts += 1
 		}
 	}
 	return app.text("")
