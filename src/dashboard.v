@@ -69,7 +69,7 @@ pub fn (mut app App) dashboard_sidebar() vweb.Result {
 
 	side_menu := [
 		home_action,
-		kanban_action
+		sites_action
 	]
 
 	sidebar := Sidebar {
