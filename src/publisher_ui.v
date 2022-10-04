@@ -11,7 +11,7 @@ import ui_kit { Action, Component, Dashboard, Navbar, Sidebar, Router, Route, Fo
 import crypto.rand as crypto_rand
 import sqlite
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, ACE, ACL, Authentication, Email, Right, Access }
-import freeflowuniverse.crystallib.pathlib { Path }
+import freeflowuniverse.crystallib.pathlib 
 
 const (
 	port = 8000
@@ -69,9 +69,7 @@ fn main() {
 	// new site zanzibar that is accessible to with email 
 	sitename1 := 'zanzibar'
 	site1 := publisher.site_add(sitename1, .book)
-	site_path1 := Path {
-		path: '/Users/timurgordon/code/github/ourworld-tsc/ourworld_books/docs/zanzibar'
-	}
+	mut site_path1 := pathlib.get("~/code/github/ourworld-tsc/ourworld_books/docs/zanzibar")
 	publisher.sites["zanzibar"].path = site_path1
 	publisher.sites["zanzibar"].authentication.email_required = true
 	publisher.sites["zanzibar"].authentication.email_authenticated = false
@@ -87,9 +85,7 @@ fn main() {
 	// new site zanzibar feasibility that requires authenticated email
 	sitename2 := 'ourworld_zanzibar_feasibility'
 	site2 := publisher.site_add("ourworld_zanzibar_feasibility", .book)
-	site_path2 := Path {
-		path: '/Users/timurgordon/code/github/ourworld-tsc/ourworld_books/docs/ourworld_zanzibar_feasibility'
-	}
+	site_path2 := pathlib.get('~/code/github/ourworld-tsc/ourworld_books/docs/ourworld_zanzibar_feasibility')
 	publisher.sites["ourworld_zanzibar_feasibility"].path = site_path2
 	publisher.sites["ourworld_zanzibar_feasibility"].authentication.email_required = true
 	publisher.sites["ourworld_zanzibar_feasibility"].authentication.email_authenticated = true
