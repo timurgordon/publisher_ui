@@ -1,5 +1,9 @@
 # ThreeFold User Interface Template
 
+Requisites:
+- vlang version 0.3.1
+- latest changes from freeflowuniverse/crystallib
+
 To run: 
 `sh develop.sh`
 

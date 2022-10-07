@@ -7,7 +7,7 @@ pub type Menu = []MenuItem
 
 pub struct Sidebar {
 	pub:
-	menu   []Action
+	menu   []Button
 	bottom_menu Menu
 }
 

@@ -1,24 +1,27 @@
 module ui_kit
 
 import freeflowuniverse.crystallib.publisher2 { User }
+import freeflowuniverse.crystallib.pathlib { Path }
 import vweb
+import htmx { HTMX }
 import os
 
 pub interface Component {
-	route Route
-	template string
-	has_access (User)bool
-mut: 
-	router Router
+	template string // path to html template
 }
 
-pub struct Router {
-	main Route
-	routes []Route
-	output string 
-pub mut:
-	active Route
-}
+// pub fn (comp Component) render() string {
+// 	current_url:= '/home'
+// 	return $tmpl('')
+// }
+
+// pub struct Router {
+// 	main Route
+// 	routes []Route
+// 	output string 
+// pub mut:
+// 	active Route
+// }
 
 // a gatekeeper function for routes
 // takes a user, returns whether they have access
@@ -30,3 +33,4 @@ pub:
 	redirect string
 	access_check Routekeeper
 }
+

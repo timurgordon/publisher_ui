@@ -7,7 +7,7 @@ import time { Time }
 import rand { ulid }
 import os
 import v.ast
-import ui_kit { Action, Component, Dashboard, Navbar, Sidebar, Router, Route, Footer}
+import ui_kit { Dashboard }
 import crypto.rand as crypto_rand
 import sqlite
 import freeflowuniverse.crystallib.publisher2 { Publisher, User, ACE, ACL, Authentication, Email, Right, Access }
@@ -18,6 +18,11 @@ const (
 )
 
 pub fn (mut app App) before_request() {
+
+	// // builds app from ground up if requested url is fresh 
+	// if app.get_header('Hx-Request') != 'true' {
+	// 	app.send_response_to_client('text/html', app.index().str())
+	// }
 
 	// TODO: update cookie instead of creating new one
 	token := app.get_cookie('token') or { '' }
@@ -50,7 +55,7 @@ mut:
 struct AccessGroup {
 	name string
 }
-
+	
 struct Auth {
 	max_attempts int = 3
 mut:
@@ -123,6 +128,8 @@ fn main() {
 }
 
 pub fn (mut app App) index() vweb.Result {
+	println(app)
+
 	mut route := 'dashboard'
 	if app.get_header('Hx-Request') != 'true' {
 		if app.req.url != '/' {
